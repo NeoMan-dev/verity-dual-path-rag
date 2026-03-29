@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verity RAG Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base: #0a0a0c;
+      --bg-surface: rgba(255, 255, 255, 0.03);
+      --bg-surface-hover: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #3b82f6;
+      --accent-grad: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      --accent-glow: rgba(139, 92, 246, 0.4);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --success-light: rgba(16, 185, 129, 0.15);
+      --warning: #f59e0b;
+      --warning-light: rgba(245, 158, 11, 0.15);
+      --danger: #ef4444;
+      --danger-light: rgba(239, 68, 68, 0.15);
+      --font-sans: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --rad: 14px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-size: 14px;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.1), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.1), transparent 25%);
+      background-attachment: fixed;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+    /* Layout */
+    .shell { display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
+
+    /* Forms */
+    input, textarea, select {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+    label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+
+    /* Sidebar */
+    aside {
+      background: rgba(10, 10, 12, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border);
+      padding: 28px 24px;
+      display: flex; flex-direction: column; gap: 32px;
+      height: 100vh; overflow-y: auto;
+    }
+
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 18px; font-weight: 700;
+      letter-spacing: -0.02em;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-icon {
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      background: var(--accent-grad);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 12px; -webkit-text-fill-color: white;
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .section { display: flex; flex-direction: column; gap: 16px; }
+    .section-header {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-muted);
+      border-bottom: 1px solid var(--border); padding-bottom: 8px;
+    }
+
+    .cred-group { display: flex; flex-direction: column; gap: 12px; }
+
+    /* Drag Drop Zone */
+    .drop-zone {
+      border: 1px dashed rgba(255,255,255,0.2);
+      border-radius: var(--rad);
+      padding: 24px 20px; text-align: center; cursor: pointer;
+      background: var(--bg-surface);
+      transition: all 0.3s ease;
+      position: relative; overflow: hidden;
+    }
+    .drop-zone::before {
+      content: ''; position: absolute; top:0;left:0;right:0;bottom:0;
+      background: var(--accent-grad); opacity: 0; transition: opacity 0.3s ease; z-index: 0;
+    }
+    .drop-zone:hover::before, .drop-zone.drag::before { opacity: 0.05; }
+    .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); border-style: solid; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    .drop-zone > * { position: relative; z-index: 1; }
+    .drop-zone .icon { font-size: 28px; margin-bottom: 8px; display: inline-block; transition: transform 0.3s ease; }
+    .drop-zone:hover .icon { transform: translateY(-3px); }
+    .drop-zone strong { display: block; font-size: 13px; font-weight: 500; color: var(--text-main); }
+    .drop-zone p { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    #file-input { display: none; }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 16px; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-primary { 
+      background: var(--accent-grad); color: #fff; 
+      box-shadow: 0 4px 12px var(--accent-glow); 
+    }
+    .btn-primary:hover:not(:disabled) { 
+      box-shadow: 0 6px 16px rgba(139, 92, 246, 0.6); 
+      filter: brightness(1.1);
+    }
+    .btn-secondary { background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--bg-surface-hover); }
+
+    /* Action Trigger Button */
+    .btn-action {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      color: white; padding: 12px 20px; font-size: 14px; border-radius: 10px;
+    }
+    .btn-action:hover { box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5); filter: brightness(1.1); }
+
+    /* File List */
+    .file-list, .doc-list { display: flex; flex-direction: column; gap: 8px; }
+    .item-card {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; font-size: 12px;
+      transition: background 0.2s;
+    }
+    .item-card:hover { background: var(--bg-surface-hover); }
+    .item-card .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+    .item-card .meta { color: var(--text-muted); font-size: 11px; }
+    .item-card .del { 
+      cursor: pointer; color: var(--text-muted); width: 24px; height: 24px; 
+      display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;
+    }
+    .item-card .del:hover { background: var(--danger-light); color: var(--danger); }
+
+    .status-msg { font-size: 12px; font-weight: 500; display:flex; align-items:center; gap:6px; min-height:20px;}
+    .status-msg.err { color: var(--danger); }
+    .status-msg.ok { color: var(--success); }
+    .status-msg.info { color: var(--accent); }
+
+    /* Main Area */
+    main { display: flex; flex-direction: column; position: relative; height: 100vh; }
+
+    /* Welcome state */
+    .hero {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 40px; pointer-events: none; opacity: 1; transition: opacity 0.5s ease;
+    }
+    .hero.hidden { opacity: 0; }
+    .hero-icon { font-size: 48px; margin-bottom: 24px; filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.4)); animation: float 6s ease-in-out infinite; }
+    @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+    .hero h1 { font-size: 28px; font-weight: 600; margin-bottom: 12px; }
+    .hero p { color: var(--text-muted); font-size: 15px; max-width: 400px; line-height: 1.5; }
+
+    /* Results Area */
+    .results-area { flex: 1; padding: 32px 40px 120px; overflow-y: auto; scroll-behavior: smooth; }
+
+    /* Answer Card (Glassmorphism) */
+    .answer-card {
+      background: var(--bg-surface);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border); border-radius: 16px;
+      margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .card-head {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px; background: rgba(0,0,0,0.2);
+    }
+    .badge {
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid transparent;
+    }
+    .badge.success { background: var(--success-light); color: var(--success); border-color: rgba(16,185,129,0.2); }
+    .badge.no_answer { background: var(--warning-light); color: var(--warning); border-color: rgba(245,158,11,0.2); }
+    .badge.error { background: var(--danger-light); color: var(--danger); border-color: rgba(239,68,68,0.2); }
+
+    .conf-meter { flex: 1; }
+    .conf-meter-labels { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; color: var(--text-muted); font-family: var(--font-mono); }
+    .conf-bar-bg { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+    .conf-bar-fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+    .card-body { padding: 24px 32px; }
+    .answer-text { font-size: 16px; line-height: 1.6; color: rgba(255,255,255,0.9); }
+    .reasoning-text { margin-top: 16px; font-size: 13px; color: var(--text-muted); padding-left: 12px; border-left: 2px solid var(--border); font-style: italic; }
+
+    /* Suggested Action Area */
+    .action-panel {
+      margin-top: 24px; padding: 20px;
+      background: linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent);
+      border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .action-info { flex: 1; }
+    .action-title { font-size: 14px; font-weight: 600; color: var(--success); margin-bottom: 4px; display:flex; align-items:center; gap:8px;}
+    .action-desc { font-size: 13px; color: var(--text-muted); }
+
+    /* JSON & Citations */
+    .accordion-header {
+      padding: 12px 20px; border-top: 1px solid var(--border);
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s;
+      background: rgba(0,0,0,0.1);
+    }
+    .accordion-header:hover { background: rgba(0,0,0,0.3); color: var(--text-main); }
+    .accordion-content { display: none; border-top: 1px solid var(--border); }
+    
+    .json-view {
+      padding: 16px 20px; background: #0d0d12;
+      font-family: var(--font-mono); font-size: 12px; color: #a6accd;
+      white-space: pre-wrap; word-break: break-all;
+    }
+
+    .citation-list { display: flex; flex-direction: column; }
+    .citation { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 16px; }
+    .citation:last-child { border-bottom: none; }
+    .cite-marker {
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: var(--accent); font-family: var(--font-mono);
+    }
+    .cite-content { flex: 1; }
+    .cite-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 11px; font-family: var(--font-mono); }
+    .cite-doc { color: var(--accent); font-weight: 500; }
+    .cite-score { color: var(--text-muted); }
+    .cite-text { font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.5; }
+
+    /* Bottom Query Bar */
+    .query-dock {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, rgba(10,10,12,1) 40%, rgba(10,10,12,0.8) 80%, transparent);
+      padding: 32px 40px; pointer-events: none;
+    }
+    .query-container {
+      background: rgba(20, 20, 24, 0.85);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px; padding: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      display: flex; gap: 16px; align-items: flex-end;
+      pointer-events: auto; transform: translateY(0); transition: all 0.3s;
+    }
+    .query-input-wrap { flex: 1; position: relative; }
+    .query-container textarea {
+      background: transparent; border: none; padding: 8px 4px;
+      font-size: 15px; color: white; resize: none; width: 100%;
+      height: 48px; line-height: 1.5; outline: none; box-shadow: none;
+    }
+    .query-container textarea::placeholder { color: var(--text-muted); }
+    
+    .query-options {
+      display: flex; flex-wrap: wrap; gap: 12px; padding-top: 12px; margin-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.05); align-items: center;
+    }
+    .opt { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+    .opt input, .opt select { background: rgba(0,0,0,0.3); border: 1px solid transparent; padding: 4px 8px; font-size: 12px; width: auto; }
+    .opt select { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .opt input:focus, .opt select:focus { border: 1px solid rgba(255,255,255,0.2); box-shadow:none; }
+
+    .send-btn {
+      width: 48px; height: 48px; border-radius: 12px; border: none;
+      background: var(--accent-grad); color: white;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; transition: all 0.2s; box-shadow: 0 4px 12px var(--accent-glow);
+    }
+    .send-btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* Spinners */
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    #toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 10px; z-index: 9999; }
+    .toast {
+      background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 20px; font-size: 13px; font-weight: 500;
+      color: white; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1), fadeOut 0.3s 3s forwards;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
+
+  </style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside>
+    <div class="brand">
+      <div class="brand-icon">✦</div>
+      Verity RAG
+    </div>
+
+    <!-- Credentials -->
+    <div class="section">
+      <div class="section-header">Authentication</div>
+      <div class="cred-group">
+        <div>
+          <label>API Key (Local)</label>
+          <input type="password" id="api-key" value="dev-secret-key" />
+        </div>
+        <div>
+          <label>Groq API Key (LLM)</label>
+          <input type="password" id="groq-key" placeholder="gsk_..." />
+        </div>
+        <div>
+          <label>HF Token (Embeddings)</label>
+          <input type="password" id="hf-token" placeholder="hf_..." />
+        </div>
+      </div>
+    </div>
+
+    <!-- Ingestion -->
+    <div class="section">
+      <div class="section-header">Knowledge Base</div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="icon">📄</div>
+        <strong>Upload Documents</strong>
+        <p>Drop PDF, CSV, or TXT here</p>
+      </div>
+      <input type="file" id="file-input" multiple accept=".pdf,.csv,.txt" />
+      
+      <div class="file-list" id="file-list"></div>
+      
+      <div id="ingest-status" class="status-msg"></div>
+      
+      <button class="btn btn-secondary" id="ingest-btn" onclick="ingestFiles()" style="display: none; width: 100%; justify-content: center;">
+        Process Files
+      </button>
+    </div>
+
+    <!-- Live Index -->
+    <div class="section" style="flex:1; margin-bottom: 20px;">
+      <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+        Indexed Documents
+        <span style="font-size:10px; cursor:pointer; color:var(--text-muted); transition:color 0.2s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'" onclick="deleteAllDocs()">Delete All</span>
+      </div>
+      <div class="doc-list" id="doc-list" style="overflow-y:auto; padding-right:4px;">
+        <div style="font-size:12px; color:var(--text-muted); text-align:center; padding: 20px 0;">No context indexed</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Chat Area -->
+  <main>
+    <div class="hero" id="hero-state">
+      <div class="hero-icon">🔮</div>
+      <h1>Intelligent Document Research</h1>
+      <p>Upload your knowledge base on the left, then ask questions below to extract verified, strictly grounded answers.</p>
+    </div>
+
+    <div class="results-area" id="results-area"></div>
+
+    <div class="query-dock">
+      <div class="query-container">
+        <div class="query-input-wrap">
+          <textarea id="query-input" placeholder="Ask a question about your documents..."></textarea>
+          <div class="query-options">
+            <div class="opt">
+              Results <input type="number" id="top-k" value="5" min="1" max="15" style="width:45px; text-align:center;" />
+            </div>
+            <div class="opt">
+              Min Score <input type="number" id="min-score" value="0.20" min="0" max="1" step="0.05" style="width:60px; text-align:center;" />
+            </div>
+            <div class="opt">
+              Filter 
+              <select id="filter-doc">
+                <option value="">All docs</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <button class="send-btn" id="ask-btn" onclick="askQuestion()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+  /* ── Setup & UI ── */
+  let pendingFiles = [];
+
+  const getVal = id => document.getElementById(id).value.trim();
+  const showToast = msg => {
+    const cont = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    cont.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  };
+
+  /* ── File Staging ── */
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+  document.getElementById('file-input').addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    for (const f of files) if (!pendingFiles.find(p => p.name === f.name)) pendingFiles.push(f);
+    renderFileList();
+  }
+
+  function renderFileList() {
+    const list = document.getElementById('file-list');
+    const btn = document.getElementById('ingest-btn');
+    list.innerHTML = pendingFiles.map((f, i) => `
+      <div class="item-card">
+        <div class="name">${f.name}</div>
+        <div class="meta">${(f.size/1024).toFixed(0)}kb</div>
+        <div class="del" onclick="removeFile(${i})">✕</div>
+      </div>
+    `).join('');
+    btn.style.display = pendingFiles.length ? 'flex' : 'none';
+  }
+
+  function removeFile(i) { pendingFiles.splice(i, 1); renderFileList(); }
+  function setStatus(msg, type) { 
+    const el = document.getElementById('ingest-status'); 
+    el.innerHTML = type === 'info' ? `<span class="spinner" style="margin-right:6px;width:12px;height:12px"></span> ${msg}` : msg;
+    el.className = `status-msg ${type}`; 
+  }
+
+  /* ── Backend Ops ── */
+  async function ingestFiles() {
+    if (!getVal('hf-token')) return showToast("HF Token needed for embeddings.");
+    
+    const btn = document.getElementById('ingest-btn');
+    btn.disabled = true; setStatus("Processing and embedding...", "info");
+
+    const fd = new FormData();
+    pendingFiles.forEach(f => fd.append('files', f));
+    fd.append('hf_token', getVal('hf-token'));
+
+    try {
+      const res = await fetch('/ingest', { method: 'POST', headers: { 'x-api-key': getVal('api-key') }, body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+      
+      const ok = data.results.filter(r => r.status === 'success').length;
+      setStatus(`Indexed ${ok} file(s)`, "ok");
+      pendingFiles = []; renderFileList(); loadDocs();
+    } catch (e) {
+      setStatus(e.message, "err");
+    } finally {
+        btn.disabled = false;
+    }
+  }
+
+  async function loadDocs() {
+    try {
+      const res = await fetch('/documents', { headers: { 'x-api-key': getVal('api-key') } });
+      const data = await res.json();
+      const list = document.getElementById('doc-list');
+      const sel = document.getElementById('filter-doc');
+      
+      if (!data.documents.length) {
+        list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding: 20px 0;">No context indexed</div>';
+        sel.innerHTML = '<option value="">All docs</option>';
+        return;
+      }
+
+      list.innerHTML = data.documents.map(d => `
+        <div class="item-card">
+          <div style="width:6px;height:6px;border-radius:50%;background:var(--success)"></div>
+          <div class="name" title="${d}">${d}</div>
+          <div class="del" onclick="deleteDoc('${d}')" title="Delete">✕</div>
+        </div>
+      `).join('');
+
+      const curr = sel.value;
+      sel.innerHTML = '<option value="">All docs</option>' + data.documents.map(d => `<option value="${d}" ${d===curr?'selected':''}>${d}</option>`);
+      
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteDoc(name) {
+    if (!confirm(`Delete ${name}?`)) return;
+    await fetch(`/documents/${encodeURIComponent(name)}`, { method: 'DELETE', headers: { 'x-api-key': getVal('api-key') } });
+    loadDocs();
+  }
+
+  async function deleteAllDocs() {
+    if (!confirm("Are you sure you want to delete ALL indexed documents?")) return;
+    try {
+      await fetch('/documents/all', { method: 'DELETE', headers: { 'x-api-key': getVal('api-key') } });
+      loadDocs();
+      showToast("All documents successfully deleted");
+    } catch(e) { console.error(e); }
+  }
+
+  /* ── Query & RAG ── */
+  document.getElementById('query-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askQuestion(); }
+  });
+
+  async function askQuestion() {
+    const q = getVal('query-input');
+    if (!q) return;
+    if (!getVal('groq-key') || !getVal('hf-token')) return showToast("API Keys required (Groq & HF)");
+
+    document.getElementById('hero-state').classList.add('hidden');
+    const area = document.getElementById('results-area');
+    
+    // Create loading card
+    const id = 'q-' + Date.now();
+    area.innerHTML += `
+      <div class="answer-card" id="${id}">
+        <div class="card-head">
+          <span class="spinner" style="border-top-color:var(--accent)"></span>
+          <span style="font-size:14px; color:var(--text-muted)">Analyzing context...</span>
+        </div>
+      </div>
+    `;
+    area.scrollTop = area.scrollHeight;
+    
+    // Query
+    const btn = document.getElementById('ask-btn'); btn.disabled = true;
+    try {
+      const res = await fetch('/query', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'x-api-key': getVal('api-key') },
+        body: JSON.stringify({
+          query: q,
+          top_k: 15,
+          min_score: parseFloat(getVal('min-score')),
+          filter_document: getVal('filter-doc') || null,
+          groq_api_key: getVal('groq-key'),
+          hf_token: getVal('hf-token')
+        })
+      });
+      const data = await res.json();
+      renderAnswer(id, q, data);
+    } catch(e) {
+      document.getElementById(id).innerHTML = `<div class="card-body"><span style="color:var(--danger)">Network Error: ${e.message}</span></div>`;
+    } finally {
+      btn.disabled = false;
+      document.getElementById('query-input').value = '';
+    }
+  }
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>'); }
+
+  function renderAnswer(id, q, data) {
+    const card = document.getElementById(id);
+    const conf = data.confidence || 0; const pct = Math.round(conf * 100);
+    const badge = `badge ${data.status}`;
+    const fill = conf >= 0.7 ? 'var(--success)' : conf >= 0.4 ? 'var(--warning)' : 'var(--danger)';
+
+    // Build Action block
+    let actionHTML = '';
+    if (data.suggested_action && data.suggested_action.type) {
+        const act = data.suggested_action;
+        actionHTML = `
+          <div class="action-panel">
+            <div class="action-info">
+              <div class="action-title">✦ Suggested Action</div>
+              <div class="action-desc">${esc(act.description)}</div>
+            </div>
+            <button class="btn btn-action" onclick="triggerAction(this, '${esc(JSON.stringify(act))}')">
+              Execute Action
+            </button>
+          </div>
+        `;
+    }
+
+    const cites = (data.citations || []).map((c, i) => `
+      <div class="citation">
+        <div class="cite-marker">${i+1}</div>
+        <div class="cite-content">
+          <div class="cite-meta"><span class="cite-doc">${c.document}</span> <span class="cite-score">Score: ${(c.similarity_score*100).toFixed(1)}%</span></div>
+          <div class="cite-text">${esc(c.text)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="${badge}">${data.status.replace('_',' ')}</span>
+        <div class="conf-meter">
+          <div class="conf-meter-labels"><span>Confidence Level</span><span>${pct}%</span></div>
+          <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${pct}%; background:${fill}"></div></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="font-weight:600; font-size:15px; margin-bottom:12px; color:var(--accent)">Q: ${esc(q)}</div>
+        <div class="answer-text">${esc(data.answer)}</div>
+        ${actionHTML}
+        ${data.reasoning ? `<div class="reasoning-text">${esc(data.reasoning)}</div>` : ''}
+      </div>
+      <div class="accordion-header" onclick="toggleAcc(this)">▹ View Source Chunks (${(data.citations || []).length})</div>
+      <div class="accordion-content" style="display: none;"><div class="citation-list">${cites || '<div style="padding:16px 20px; color:var(--text-muted); font-size:12px">No sources used</div>'}</div></div>
+      <div class="accordion-header" onclick="toggleAcc(this)">▹ View Structured JSON</div>
+      <div class="accordion-content" style="display: none;"><div class="json-view">${esc(JSON.stringify(data, null, 2))}</div></div>
+    `;
+    
+    // Auto-scroll
+    setTimeout(() => {
+        const area = document.getElementById('results-area');
+        area.scrollTop = area.scrollHeight;
+    }, 100);
+  }
+
+  function toggleAcc(el) {
+    const body = el.nextElementSibling;
+    const isVis = body.style.display === 'block';
+    body.style.display = isVis ? 'none' : 'block';
+    el.innerHTML = el.innerHTML.replace(isVis ? '▾' : '▹', isVis ? '▹' : '▾');
+  }
+
+  // Action execution mock
+  window.triggerAction = function(btnElement, actionStr) {
+    try {
+      const act = JSON.parse(actionStr.replace(/&quot;/g, '"'));
+      btnElement.innerHTML = '<span class="spinner" style="border-top-color:white; width:14px; height:14px;"></span> Running...';
+      btnElement.disabled = true;
+
+      setTimeout(() => {
+        let executionResult = "";
+        if (act.type === 'open_url') {
+            if(act.payload.url) { window.open(act.payload.url, '_blank'); executionResult = "Opened URL in new tab"; }
+            else { executionResult = "Missing URL"; }
+        } else if (act.type === 'copy_text') {
+            navigator.clipboard.writeText(act.payload.text || '');
+            executionResult = "Copied to clipboard!";
+        } else if (act.type === 'draft_email') {
+            const subject = encodeURIComponent(act.payload.subject || '');
+            const body = encodeURIComponent(act.payload.text || '');
+            window.location.href = `mailto:${act.payload.email || ''}?subject=${subject}&body=${body}`;
+            executionResult = "Drafted email";
+        } else {
+            executionResult = "Executed generic action: " + act.description;
+        }
+
+        btnElement.innerHTML = '✓ Success';
+        btnElement.style.background = 'var(--bg-surface)';
+        btnElement.style.border = '1px solid var(--success)';
+        btnElement.style.color = 'var(--success)';
+        showToast(executionResult);
+      }, 800);
+
+    } catch(e) { console.error(e); showToast("Failed to parse action"); }
+  }
+
+  // Setup initial
+  loadDocs();
+</script>
+</body>
+</html>

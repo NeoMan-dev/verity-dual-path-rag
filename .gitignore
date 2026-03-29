@@ -1,0 +1,17 @@
+# Environment
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Data
+data/tables/*
+!data/tables/.gitkeep
+vector_store.json
+
+# Logs & Tests
+rag_agent.log
+test_results.md
+
+# OS Files
+.DS_Store
