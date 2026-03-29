@@ -14,9 +14,9 @@ Built with FastAPI + Groq (Llama 3.3) + HuggingFace Embeddings + Pandas.
 
 ## Demo
 
-![Verity UI Demo](assets/verity_demo.webp)
+![Verity RAG UI](assets/ui_screenshot.png)
 
-Upload your enterprise data → ask cross-row mathematical questions → watch the agent dynamically write and execute Pandas scripts to extract the answers without breaking tabular structure.
+Left panel: authentication credentials + document upload zone. Center: query interface with full response trace including confidence score, citations, and suggested actions.
 
 ---
 
