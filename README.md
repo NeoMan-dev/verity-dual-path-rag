@@ -14,9 +14,11 @@ Built with FastAPI + Groq (Llama 3.3) + HuggingFace Embeddings + Pandas.
 
 ## Demo
 
+**Empty state** — upload zone, credential inputs, and indexed document list:
 ![Verity RAG UI](assets/ui_screenshot.png)
 
-Left panel: authentication credentials + document upload zone. Center: query interface with full response trace including confidence score, citations, and suggested actions.
+**Live query** — 95% confidence answer grounded in source documents with full citation trace:
+![Verity RAG Demo Query](assets/demo_query.png)
 
 ---
 
