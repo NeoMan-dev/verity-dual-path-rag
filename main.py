@@ -40,6 +40,9 @@ logger = logging.getLogger(__name__)
 app   = FastAPI(title="RAG Agent", version="1.0.0")
 store = VectorStore()
 
+# Ensure required directories exist
+Path("data/tables").mkdir(parents=True, exist_ok=True)
+
 # ── Rate Limiting (simple in-memory) ─────────────────────────────────────────
 
 _request_log: dict[str, list[float]] = defaultdict(list)

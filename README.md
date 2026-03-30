@@ -126,8 +126,14 @@ verity-dual-path-rag/
 
 ## Notes
 
-- All credentials are entered in the UI at runtime — **no secrets are stored in the repo**.
-- **Security warning**: The analytical engine generates and executes raw Python Pandas code locally against `data/tables/`. Ensure this is run locally or behind strict auth boundaries if deployed publicly.
-- Tested on Python 3.10+.
-- **Rate limits:** The Groq free tier enforces strict Token-Per-Day (TPD) limits. Repeated mathematical lookups on large CSV files may exhaust the 100k daily token limit quickly.
-- To prevent chunk saturation on massive cross-document searches, the Verity UI optimally defaults to `top_k=15` and `min_score=0.10`.
+- **Zero-Trust Credentials**: All API keys (Groq, HuggingFace) are entered in the UI at runtime and are never stored in the repository or local environment files.
+- **Analytical Execution**: The engine dynamically generates and executes Pandas code against local CSV data. For production-grade security, this should be run within a restricted containerized sandbox.
+- **Technical Considerations**:
+    - **Document Parsing**: Optimized for text-heavy PDFs, CSVs, and TXT files. Complex multi-column layouts, nested tables, or image-only PDFs (without OCR) may result in reduced retrieval accuracy.
+    - **Performance**: Queries are capped at 1,000 characters to ensure low-latency LLM processing.
+    - **Embeddings**: Utilizes HuggingFace Serverless Inference; initial requests after inactivity may incur a brief cold-start delay (~10s).
+    - **Persistence**: Implements a custom JSON-backed vector store for easy local portability without requiring a dedicated database server.
+    - **Compatibility**: Built and tested on Python 3.10+.
+- **Rate Management**: High-volume analytical processing on large datasets is subject to provider-level API rate limits (e.g., Groq's daily token caps).
+- **Optimized Retrieval**: To maintain high-quality synthesis, the system defaults to `top_k=15` with a configurable `min_score` threshold.
+
